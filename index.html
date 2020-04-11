@@ -1,0 +1,339 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="lib/css/bootstrap.css">
+    <script src="lib/js/jquery-3.4.1.js"></script>
+    <script src="lib/js/bootstrap.js"></script>
+    <script src="lib/js/popper.js"></script>
+    <script src="lib/js/vue.js"></script>
+
+</head>
+
+<body>
+    <div id="app">
+         <my-cart></my-cart>
+    </div>
+
+</body>
+<script>
+    //标题的模板
+    var CartTitle = {
+        props: ["uname"],
+        template: `  <h3 class="text-center">{{uname}}的购物车</h3>`,
+    }
+    //列表的模板
+    var CartList = {
+        data: function () {
+            return {
+                isSelectedAll: false, //标识是否全选
+            }
+        },
+        props: ["list"],
+        filters: {
+            //格式化金钱
+            moneyFormat(money) {
+                return "￥" + Number(money).toFixed(2);
+            },
+        },
+        template: ` <table class="table table-striped table-inverse table-responsive table-bordered ">
+                        <thead class="thead-inverse bg-info ">
+                            <tr>
+                           <th ><input type="checkbox" id="selectAll" 
+                                    @click="selectedAll(isSelectedAll)" 
+                                    :checked="isSelectedAll" 
+                                    >全选 </th> 
+                                    <th ><span>商品信息</span></th> 
+                                <th >商品参数</th>
+                                <th  >单价</thclass="span4">
+                                <th  >数量</th>
+                                <th  >金额</th>
+                                <th  >操作</th>
+                            </tr>
+                        </thead>
+                        <tbody >
+                            <tr v-for="item in list" >
+                                <td >
+                                    <input type="checkbox" class="checkbox "
+                                     @click="signerShopSelected(item)"
+                                       :checked="item.checked"   />    
+                                       <img :src="item.img" >   </td>        
+                                       <td style="width:260px;"><a  >{{item.name}}</a> </td >
+                                <td  style="width:260px;">{{item.para }}</td>
+                                <td  class="text-danger">{{item.price |moneyFormat}}</td>
+                                <td style="float:left;">
+                                    <button class="btn " @click=sub(item.id)>-</button>
+                                     <input type="text" :value="item.num" class="input-sm" @blur="changeNum(item.id,$event)"> 
+                                    <button class="btn "@click=add(item.id)>+</button>
+                                </td>
+                                <td class="text-danger"> {{item.price * item.num |moneyFormat}}</td>
+                                <td >
+         <button class="btn btn-info " data-toggle="modal" data-target="#myModal">
+          删除
+        </button>
+        <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                            &times;
+                        </button>
+                        <h4 class="modal-title" id="myModalLabel">
+                           系统提示:
+                        </h4>
+                    </div>
+                    <div class="modal-body">
+                       你确定要删除该商品吗
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">关闭
+                        </button>
+                        <button type="button" class="btn btn-primary" @click.prevent="del(item.id)">
+                            确定
+                        </button>
+                    </div>
+                </div>
+            </div>
+     
+    </div>
+         </td>
+                            </tr>
+                        </tbody>
+                    </table>`,
+
+        methods: {
+            //全选
+            selectedAll(flag) {
+                //属性控制
+                this.isSelectedAll = !flag;
+                //遍历购物车中所有的商品数据
+                this.list.forEach((value, index) => {
+                    //判断
+                    if (typeof value.checked === "undefined") {
+                        //当前对象没有该属性
+                        this.$set(value, "checked", !flag);
+                    } else {
+                        value.checked = !flag;
+                    }
+                });
+            },
+            //单个商品的选中和取消选中
+            signerShopSelected(list) {
+                //判断有没有该属性
+                if (typeof list.checked === "undefined") {
+                    this.$set(list, "checked", true);
+                } else {
+                    list.checked = !list.checked;
+                }
+            },
+            //判断是否要全选
+            hasSelectedAll() {
+                let flag = true;
+                this.list.forEach((value, index) => {
+                    if (!value.checked) {
+                        flag = false;
+                    }
+                });
+                this.isSelectedAll = flag;
+
+            },
+            //数量增加
+            add: function (id) {
+                this.$emit("change-num", {
+                    id: id,
+                    type: "add",
+                });
+            },
+            //数量减少
+            sub: function (id) {
+                this.$emit("change-num", {
+                    id: id,
+                    type: "sub",
+                });
+            },
+            //修改数量
+            changeNum: function (id, event) {
+                this.$emit("change-num", {
+                    id: id,
+                    type: "change",
+                    num: event.target.value,
+                })
+            },
+            //删除商品
+            del: function (id) {
+                //把id传递给父组件
+                this.$emit("cart-del", id);
+            }
+        },
+    }
+    //结算的模板
+    var CartTotal = {
+        filters: {
+            //格式化金钱
+            moneyFormat(money) {
+                return "￥" + Number(money).toFixed(2);
+            }
+        },
+        props: ["list"],
+        template: `<div class=" container navbar navbar-fixed-bottom well text-right">
+                    <span>已选商品<strong class="text-danger">{{totalCount}}</strong>件</span>
+                    <span>共计:<strong  class="text-danger">
+                    {{total |moneyFormat}}</strong></span>
+                    <button class=" btn  btn-danger">结算</button>
+                </div>`,
+        computed: {
+            totalCount: function () {
+                let tCount = 0;
+                //遍历所有的商品
+                this.list.forEach((value, index) => {
+                    //判断是否选中
+                    if (value.checked) {
+                        tCount += 1;
+                    }
+                });
+                //更新总价格
+                return this.count = tCount;
+            },
+            //计算商品的总价
+            total: function () {
+                let tPrice = 0;
+                //遍历所有的商品
+                this.list.forEach((value, index) => {
+                    //判断是否选中
+                    if (value.checked) {
+                        tPrice += value.price * value.num;
+                    }
+                });
+                //更新总价格
+                return this.totalPrice = tPrice;
+            },
+            /*     getSignShopSum:function(id){
+                    let sum =0;
+                    var list = this.list.filter(function (item) {
+                            return item.id == id;
+                        })
+                        this.sum=list[0].sum*list[0].num;
+                        this.sum=this.sum;
+                        console.log(this.sum);
+                }, */
+        },
+    }
+    //全局组件
+    Vue.component("my-cart", {
+        data: function () {
+            return {
+                uname: "魏晨的小可爱",
+                totalPrice: 0,
+                list: [{
+                        id: 1,
+                        name: "纯棉白色短袖t恤女装2020夏季新款品韩版宽松百搭半袖上衣服ins潮",
+                        img: "upload/1.jpg",
+                        para: "[主要颜色:纯白色,尺码:M]",
+                        price: "19.9",
+                        num: 1,
+                        sum: "19.9"
+                    },
+                    {
+                        id: 2,
+                        img: "upload/2.jpg",
+                        name: "帛卡琪2019新款春秋chic学院派少女POLO衫休闲上衣绣花宽松卫衣潮",
+                        para: "[主要颜色:浅紫色,尺码:均码]",
+                        price: "56",
+                        num: 1,
+                        sum: "56"
+                    }, {
+                        id: 3,
+                        img: "upload/3.jpg",
+                        name: "全自动雨伞女少女心学生晴雨两用折叠遮阳防晒防紫外线五折太阳伞",
+                        para: '[颜色分类：静晓【三折自动款】]',
+                        price: "35.8",
+                        num: 1,
+                        sum: "35.8"
+                    }, {
+                        id: 4,
+                        img: "upload/4.jpg",
+                        name: "很仙的网红背带裤女2020春秋新款韩版小清新学生洋气减龄两件套装",
+                        para: "[颜色分类：白色上衣+牛仔蓝裤【两件套】,尺码：M]",
+                        price: "109",
+                        num: 1,
+                        sum: "109"
+                    },
+                ]
+            }
+        },
+        //提供模板
+        template: `  
+        <div class="container">
+            <Cart-title :uname="uname"></Cart-title>
+             <Cart-list  :list="list" @change-num="changeNum($event)"  @cart-del="delCart($event)" ></Cart-list>
+            <Cart-total :list="list"></Cart-total>
+        </div>
+        `,
+        //定义局部组件
+        components: {
+            "Cart-title": CartTitle,
+            "Cart-list": CartList,
+            "Cart-total": CartTotal,
+        },
+        methods: {
+            changeNum: function (val) {
+                //分为三种情况处理
+                //1.输入域变更
+                //2.点击减号变更
+                //3.点击加号变更
+                // console.log(val);
+                if (val.type == "chang") {
+                    //根据子组件中传递过来的数据,更新list中对应的数据
+                    this.list.some(item => {
+                        if (item.id == val.id) {
+                            item.num = val.num;
+                            //终止遍历
+                            return true;
+                        }
+                    });
+                } else if (val.type == "sub") {
+                    //减号操作
+                    this.list.some(item => {
+                        if (item.id == val.id) {
+                            //判断num是否小于1,不小于则可以减
+                            //console.log(item.num);
+                            if (item.num > 1) {
+                                item.num -= 1;
+                            }
+                            //终止遍历
+                            return true;
+                        }
+                    });
+                } else if (val.type == "add") {
+                    //加号操作
+                    this.list.some(item => {
+                        if (item.id == val.id) {
+                            item.num += 1;
+                            //终止遍历
+                            return true;
+                        }
+                    });
+                }
+
+            },
+            delCart: function (id) {
+                // 根据id删除list中对应的数据
+                // 1、找到id所对应数据的索引
+                var index = this.list.findIndex(item => {
+                    return item.id == id;
+                });
+                // 2、根据索引删除对应数据
+                this.list.splice(index, 1);
+                $('#myModal').modal('hide');
+            }
+        }
+    });
+    new Vue({
+        el: "#app",
+    })
+
+</script>
+
+</html>
